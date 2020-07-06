@@ -7,10 +7,24 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
     <copyright>&amp;copy; &lt;a href=&#34;https://github.com/susliko&#34;&gt;Vasiliy Morkovkin&lt;/a&gt; 2020</copyright>
-    <lastBuildDate>Wed, 01 Apr 2020 15:17:42 +0300</lastBuildDate>
+    <lastBuildDate>Mon, 01 Jun 2020 15:17:42 +0300</lastBuildDate>
     
 	<atom:link href="https://susliko.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Concurrent approaches to concurrency</title>
+      <link>https://susliko.github.io/posts/concurrency/</link>
+      <pubDate>Mon, 01 Jun 2020 15:17:42 +0300</pubDate>
+      
+      <guid>https://susliko.github.io/posts/concurrency/</guid>
+      <description>&lt;p&gt;Coroutine, fiber, goroutine, green thread, virtual thread, continuation, future, actor, generator, async/await.&lt;br&gt;
+What do all of these buzzwords mean?&lt;br&gt;
+What problems do they solve?
+How do they relate?&lt;br&gt;
+Which approaches do various languages take?&lt;br&gt;
+Let&amp;rsquo;s shed a light on this! 💡&lt;/p&gt;</description>
+    </item>
     
     <item>
       <title>Mum, I&#39;m on TV!</title>

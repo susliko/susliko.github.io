@@ -18,7 +18,12 @@
       <pubDate>Mon, 01 Jun 2020 15:17:42 +0300</pubDate>
       
       <guid>https://susliko.github.io/posts/concurrency/</guid>
-      <description>FOO peka allo</description>
+      <description>&lt;p&gt;Coroutine, fiber, goroutine, green thread, virtual thread, continuation, future, actor, generator, async/await.&lt;br&gt;
+What do all of these buzzwords mean?&lt;br&gt;
+What problems do they solve?
+How do they relate?&lt;br&gt;
+Which approaches do various languages take?&lt;br&gt;
+Let&amp;rsquo;s shed a light on this! 💡&lt;/p&gt;</description>
     </item>
     
   </channel>

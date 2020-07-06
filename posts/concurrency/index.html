@@ -7,7 +7,12 @@
 <title>Concurrent approaches to concurrency | blog</title>
 
 <meta property='og:title' content='Concurrent approaches to concurrency - blog'>
-<meta property='og:description' content='FOO peka allo'>
+<meta property='og:description' content='Coroutine, fiber, goroutine, green thread, virtual thread, continuation, future, actor, generator, async/await.
+What do all of these buzzwords mean?
+What problems do they solve?
+How do they relate?
+Which approaches do various languages take?
+Let&rsquo;s shed a light on this! 💡'>
 <meta property='og:url' content='https://susliko.github.io/posts/concurrency/'>
 <meta property='og:site_name' content='blog'>
 <meta property='og:type' content='article'><meta property='og:image' content='https://www.gravatar.com/avatar/b31e351176a130eaa735b6c6300a4580?s=256'><meta property='article:section' content='Posts'><meta property='article:tag' content='concurrency'><meta property='article:tag' content='languages'><meta property='article:published_time' content='2020-06-01T15:17:42&#43;03:00'/><meta property='article:modified_time' content='2020-06-01T15:17:42&#43;03:00'/><meta name='twitter:card' content='summary'><meta name='twitter:site' content='@markoukin'><meta name='twitter:creator' content='@markoukin'>
@@ -99,9 +104,96 @@
     <h1 class="title">Concurrent approaches to concurrency</h1>
     
     <div class="content">
-      <h2 id="foo">FOO</h2>
-<p>peka allo</p>
-
+      <p>Coroutine, fiber, goroutine, green thread, virtual thread, continuation, future, actor, generator, async/await.<br>
+What do all of these buzzwords mean?<br>
+What problems do they solve?
+How do they relate?<br>
+Which approaches do various languages take?<br>
+Let&rsquo;s shed a light on this! 💡</p>
+<ul>
+<li><a href="#part-1-concepts">Part 1. Concepts</a>
+<ul>
+<li><a href="#reasons-for-concurrent-programming">Reasons for concurrent programming</a>
+<ul>
+<li><a href="#types-of-blocking">Types of blocking</a></li>
+<li><a href="#how-to-optimize-waiting">How to optimize waiting?</a></li>
+</ul>
+</li>
+<li><a href="#processing-units-bottom-to-top">Processing units: bottom to top</a>
+<ul>
+<li><a href="#system-threads-and-processes">System threads and processes</a></li>
+<li><a href="#continuations-generators-coroutines">Continuations, Generators, Coroutines</a></li>
+<li><a href="#coroutine--sheduler--fiber">Coroutine + Sheduler = Fiber</a></li>
+<li><a href="#actors">Actors</a></li>
+<li><a href="#misc-synonyms">MISC: synonyms</a></li>
+</ul>
+</li>
+<li><a href="#syntax">Syntax</a>
+<ul>
+<li><a href="#callbacks">Callbacks</a></li>
+<li><a href="#futures-and-asyncawait">Futures and async/await</a></li>
+<li><a href="#communicating-sequential-processes-csp">Communicating sequential processes (CSP)</a></li>
+<li><a href="#monad-comprehensions">Monad comprehensions</a></li>
+</ul>
+</li>
+<li><a href="#points-of-comparison">Points of comparison</a>
+<ul>
+<li><a href="#types-of-multitasking">Types of multitasking</a></li>
+<li><a href="#structured-concurrency">Structured concurrency</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#part-2-implementations">Part 2. Implementations</a>
+<ul>
+<li><a href="#erlangelixir">Erlang/Elixir</a></li>
+<li><a href="#c">C</a></li>
+<li><a href="#haskell">Haskell</a></li>
+<li><a href="#jvm-and-loom">JVM and Loom</a></li>
+<li><a href="#scala">Scala</a></li>
+<li><a href="#kotlin">Kotlin</a></li>
+<li><a href="#clojure">Clojure</a></li>
+<li><a href="#go">Go</a></li>
+<li><a href="#javascript">JavaScript</a></li>
+<li><a href="#python">Python</a></li>
+<li><a href="#c-1">C++</a></li>
+<li><a href="#rust">Rust</a></li>
+</ul>
+</li>
+<li><a href="#summary">Summary</a></li>
+</ul>
+<h1 id="part-1-concepts">Part 1. Concepts</h1>
+<h2 id="reasons-for-concurrent-programming">Reasons for concurrent programming</h2>
+<h3 id="types-of-blocking">Types of blocking</h3>
+<h3 id="how-to-optimize-waiting">How to optimize waiting?</h3>
+<h2 id="processing-units-bottom-to-top">Processing units: bottom to top</h2>
+<h3 id="system-threads-and-processes">System threads and processes</h3>
+<h3 id="continuations-generators-coroutines">Continuations, Generators, Coroutines</h3>
+<h3 id="coroutine--sheduler--fiber">Coroutine + Sheduler = Fiber</h3>
+<h3 id="actors">Actors</h3>
+<h3 id="misc-synonyms">MISC: synonyms</h3>
+<h2 id="syntax">Syntax</h2>
+<h3 id="callbacks">Callbacks</h3>
+<h3 id="futures-and-asyncawait">Futures and async/await</h3>
+<h3 id="communicating-sequential-processes-csp">Communicating sequential processes (CSP)</h3>
+<h3 id="monad-comprehensions">Monad comprehensions</h3>
+<h2 id="points-of-comparison">Points of comparison</h2>
+<h3 id="types-of-multitasking">Types of multitasking</h3>
+<h3 id="structured-concurrency">Structured concurrency</h3>
+<h1 id="part-2-implementations">Part 2. Implementations</h1>
+<h2 id="erlangelixir">Erlang/Elixir</h2>
+<h2 id="c">C#</h2>
+<h2 id="haskell">Haskell</h2>
+<h2 id="jvm-and-loom">JVM and Loom</h2>
+<h2 id="scala">Scala</h2>
+<h2 id="kotlin">Kotlin</h2>
+<h2 id="clojure">Clojure</h2>
+<h2 id="go">Go</h2>
+<h2 id="javascript">JavaScript</h2>
+<h2 id="python">Python</h2>
+<h2 id="c-1">C++</h2>
+<h2 id="rust">Rust</h2>
+<h1 id="summary">Summary</h1>
       
       <div class="related">
 </div>
