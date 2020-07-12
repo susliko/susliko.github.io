@@ -15,7 +15,7 @@ Which approaches do various languages take?
 Let&rsquo;s shed a light on this! 💡'>
 <meta property='og:url' content='https://susliko.github.io/posts/concurrency/'>
 <meta property='og:site_name' content='blog'>
-<meta property='og:type' content='article'><meta property='og:image' content='https://www.gravatar.com/avatar/b31e351176a130eaa735b6c6300a4580?s=256'><meta property='article:section' content='Posts'><meta property='article:tag' content='concurrency'><meta property='article:tag' content='languages'><meta property='article:published_time' content='2020-06-01T15:17:42&#43;03:00'/><meta property='article:modified_time' content='2020-06-01T15:17:42&#43;03:00'/><meta name='twitter:card' content='summary'><meta name='twitter:site' content='@markoukin'><meta name='twitter:creator' content='@markoukin'>
+<meta property='og:type' content='article'><meta property='og:image' content='https://www.gravatar.com/avatar/b31e351176a130eaa735b6c6300a4580?s=256'><meta property='article:section' content='Posts'><meta property='article:tag' content='concurrency'><meta property='article:tag' content='languages'><meta property='article:published_time' content='2020-07-01T15:17:42&#43;03:00'/><meta property='article:modified_time' content='2020-07-01T15:17:42&#43;03:00'/><meta name='twitter:card' content='summary'><meta name='twitter:site' content='@markoukin'><meta name='twitter:creator' content='@markoukin'>
 
 
 <link href="https://susliko.github.io/index.xml" rel="alternate" type="application/rss+xml" title="blog" />
@@ -100,7 +100,7 @@ Let&rsquo;s shed a light on this! 💡'>
 
       
     </div>
-    <h2 class="subtitle is-6">June 1, 2020</h2>
+    <h2 class="subtitle is-6">July 1, 2020</h2>
     <h1 class="title">Concurrent approaches to concurrency</h1>
     
     <div class="content">
@@ -110,22 +110,23 @@ What problems do they solve?
 How do they relate?<br>
 Which approaches do various languages take?<br>
 Let&rsquo;s shed a light on this! 💡</p>
+<p>The reader is invited to read the broad-picture Part 1 and intersting for him examples from the Part 2.</p>
 <ul>
 <li><a href="#part-1-concepts">Part 1. Concepts</a>
 <ul>
 <li><a href="#reasons-for-concurrent-programming">Reasons for concurrent programming</a>
 <ul>
-<li><a href="#types-of-blocking">Types of blocking</a></li>
-<li><a href="#how-to-optimize-waiting">How to optimize waiting?</a></li>
+<li><a href="#waiting-optimization">Waiting optimization</a></li>
+<li><a href="#multitasking">Multitasking</a></li>
 </ul>
 </li>
-<li><a href="#processing-units-bottom-to-top">Processing units: bottom to top</a>
+<li><a href="#units-of-execution">Units of execution</a>
 <ul>
-<li><a href="#system-threads-and-processes">System threads and processes</a></li>
-<li><a href="#continuations-generators-coroutines">Continuations, Generators, Coroutines</a></li>
-<li><a href="#coroutine--sheduler--fiber">Coroutine + Sheduler = Fiber</a></li>
+<li><a href="#system-processes-and-threads">System processes and threads</a></li>
+<li><a href="#continuations-coroutines-generators">Continuations, Coroutines, Generators</a></li>
+<li><a href="#coroutines--scheduling--fibers">Coroutines + Scheduling = Fibers</a></li>
 <li><a href="#actors">Actors</a></li>
-<li><a href="#misc-synonyms">MISC: synonyms</a></li>
+<li><a href="#misc-green-and-lightweight-threads">MISC: green and lightweight threads</a></li>
 </ul>
 </li>
 <li><a href="#syntax">Syntax</a>
@@ -139,6 +140,7 @@ Let&rsquo;s shed a light on this! 💡</p>
 <li><a href="#points-of-comparison">Points of comparison</a>
 <ul>
 <li><a href="#types-of-multitasking">Types of multitasking</a></li>
+<li><a href="#cancellation">Cancellation</a></li>
 <li><a href="#structured-concurrency">Structured concurrency</a></li>
 </ul>
 </li>
@@ -164,14 +166,67 @@ Let&rsquo;s shed a light on this! 💡</p>
 </ul>
 <h1 id="part-1-concepts">Part 1. Concepts</h1>
 <h2 id="reasons-for-concurrent-programming">Reasons for concurrent programming</h2>
-<h3 id="types-of-blocking">Types of blocking</h3>
-<h3 id="how-to-optimize-waiting">How to optimize waiting?</h3>
-<h2 id="processing-units-bottom-to-top">Processing units: bottom to top</h2>
-<h3 id="system-threads-and-processes">System threads and processes</h3>
-<h3 id="continuations-generators-coroutines">Continuations, Generators, Coroutines</h3>
-<h3 id="coroutine--sheduler--fiber">Coroutine + Sheduler = Fiber</h3>
+<p>Every program consists of a bunch of CPU <em>computations</em> and syncronous <em>waiting</em> for something to become available (e.g. lock, result of a network request).<br>
+Instead of keeping CPU idle while waiting, we could start another computation <em>concurrently</em> (read &ldquo;concurrent&rdquo; as &ldquo;with overlapping execution time bounds&rdquo;): this would allow to accomplish more in less time.<br>
+A set of techniques which enables concurrent execution of computations is called <em>concurrent programming</em>.</p>
+<h3 id="waiting-optimization">Waiting optimization</h3>
+<p>All waiting operations might be split into two categories: synchronisation and I/O.<br>
+<em>Synchronisation</em> (language-level):</p>
+<ul>
+<li>locks</li>
+<li>blocking queues</li>
+</ul>
+<p><em>I/O (OS-level)</em>:</p>
+<ul>
+<li>network socket reads/writes</li>
+<li>disk reads/writes</li>
+<li>DNS lookups</li>
+<li>other system calls (see <a href="https://www.tutorialspoint.com/different-types-of-system-calls">types of system calls</a>)</li>
+</ul>
+<p>There are two ways to deal with waiting operations: either constantly poll for some completion condition or &ldquo;subscribe&rdquo; to that event via a callback which will resume a computation when called. The second approach gives the desired opportunity for CPU to work on other computations while previous computation might be paused until the waiting finishes.<br>
+Most of the listed types of blocking might be implemented efficiently with that idea in mind:</p>
+<ul>
+<li>efficient implementations of synchronisation primitives (locks, blocking queues) are handled by the language designers</li>
+<li>asynchronous socket operations: <a href="https://man7.org/linux/man-pages/man7/epoll.7.html">epoll</a> (Linux), <a href="https://www.freebsd.org/cgi/man.cgi?query=kqueue&amp;sektion=2">kqueue</a> (FreeBSD), <a href="https://docs.microsoft.com/en-us/windows/win32/fileio/i-o-completion-ports">iocp</a> (Windows)</li>
+<li>asynchronous disk I/O: <a href="https://kernel.dk/io_uring.pdf">ui_uring</a> (Linux), <a href="https://www.freebsd.org/cgi/man.cgi?query=aio&amp;sektion=4&amp;manpath=freebsd-release-ports">aio</a> (FreeBSD), <a href="https://docs.microsoft.com/en-us/windows/win32/sync/synchronization-and-overlapped-input-and-output?redirectedfrom=MSDN">overlapped I/O</a> (Windows)</li>
+<li>there is also a bunch of solutions for asynchronous DNS-lookups (e.g. Linux <a href="https://linux.die.net/man/3/qdns">qdns</a>)</li>
+</ul>
+<h3 id="multitasking">Multitasking</h3>
+<p>Besides waiting optimisation concurrent programming ships an opportunity to progress in execution of multiple CPU-bound concurrent tasks independently of the number of involved system threads.<br>
+This approach is called <em>multitasking</em>.<br>
+There are two types of it:</p>
+<ul>
+<li><em>Preemptive multitasking</em>. In this model each computation might be paused by the scheduler and resumed at some time later.<br>
+Examples: system threads, goroutines (Go), IO monad (Haskell).</li>
+<li><em>Cooperative multitasking</em>. This model allows only voluntary pauses, which allow other computations to get their CPU time. Voluntary pausing is often called <em>yielding</em>.<br>
+Examples: coroutines (Lua, Kotlin)</li>
+</ul>
+<p>While preemptive approach doesn&rsquo;t allow long-running tasks to occupy all the CPU time, those programs are more prone to bugs, since the execution might be preempted at any point. Therefore a very careful synchronisation is required to prevent various bugs like data races and race conditions.<br>
+Cooperative approach is widespread in many languages since it is sufficient for most of applications (non latency-critical ones) and allows smaller amount of inappropriate execution scenarios to happen.</p>
+<p>The next part will cover the known ways to implement multitasking.</p>
+<p>Useful links:</p>
+<ul>
+<li><a href="https://gist.github.com/jboner/2841832">list</a> of latency numbers for RAM/CPU/disk/network operations</li>
+<li><a href="https://blog.regehr.org/archives/490">race condition vs data race</a></li>
+</ul>
+<h2 id="units-of-execution">Units of execution</h2>
+<h3 id="system-processes-and-threads">System processes and threads</h3>
+<p>The lowest abstraction representing an executing program is a <em>system process</em>.<br>
+Each process has its <em>address space</em> (some allocated memory to store all possible addresses to devices, files on disk, main memory locations, remote hosts). Processes are scheduled by a system scheduler. The scheduling is preemptive, in order to guarantee that all running processes will have a chance to progress.</p>
+<p>Many programs require parallel execution (e.g. browser should be able to brouse several pages in time). For this purpose a process can spawn multiple <em>system threads</em> &ndash; some objects that share the address space of their process, but have own call stacks. To schedule a process means to schedule all of its threads.<br>
+The goal of parallel execution might also be achieved via creating multiple processes, but inter-process communication (via pipes or sockets) is slower than communication between threads sharing the same address space.</p>
+<p>Why not to stop here? Why do we keep hearing about &ldquo;lightweight threads&rdquo; implementations in different languages?<br>
+The reason for this is the time which takes to start a system thread and the amount of memory it occupies: the default size of Linux thread call stack is 2 megabytes. It turns out that a system thread is a relatively precious resource, as one cannot spawn more than a couple of thousands of them on a single machine.<br>
+But at the same time one might want to have millions of small concurrent tasks accomplished, hence spawning one system thread per one task is not affordable.</p>
+<p>Useful links:</p>
+<ul>
+<li><a href="https://www.slashroot.in/difference-between-process-and-thread-linux">Linux processes and threads</a></li>
+<li><a href="https://opensource.com/article/19/2/fair-scheduling-linux">Completely Fair Scheduler &ndash; default Linux scheduler</a></li>
+</ul>
+<h3 id="continuations-coroutines-generators">Continuations, Coroutines, Generators</h3>
+<h3 id="coroutines--scheduling--fibers">Coroutines + Scheduling = Fibers</h3>
 <h3 id="actors">Actors</h3>
-<h3 id="misc-synonyms">MISC: synonyms</h3>
+<h3 id="misc-green-and-lightweight-threads">MISC: green and lightweight threads</h3>
 <h2 id="syntax">Syntax</h2>
 <h3 id="callbacks">Callbacks</h3>
 <h3 id="futures-and-asyncawait">Futures and async/await</h3>
@@ -179,6 +234,7 @@ Let&rsquo;s shed a light on this! 💡</p>
 <h3 id="monad-comprehensions">Monad comprehensions</h3>
 <h2 id="points-of-comparison">Points of comparison</h2>
 <h3 id="types-of-multitasking">Types of multitasking</h3>
+<h3 id="cancellation">Cancellation</h3>
 <h3 id="structured-concurrency">Structured concurrency</h3>
 <h1 id="part-2-implementations">Part 2. Implementations</h1>
 <h2 id="erlangelixir">Erlang/Elixir</h2>
