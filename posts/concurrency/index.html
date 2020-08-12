@@ -123,10 +123,10 @@ Let&rsquo;s shed a light on this! 💡</p>
 <li><a href="#units-of-execution">Units of execution</a>
 <ul>
 <li><a href="#system-processes-and-threads">System processes and threads</a></li>
-<li><a href="#continuations-coroutines-generators">Continuations, Coroutines, Generators</a></li>
-<li><a href="#coroutines--scheduling--fibers">Coroutines + Scheduling = Fibers</a></li>
+<li><a href="#green-lightweight-threads">Green (lightweight) threads</a></li>
+<li><a href="#coroutines-and-fibers">Coroutines and Fibers</a></li>
 <li><a href="#actors">Actors</a></li>
-<li><a href="#misc-green-and-lightweight-threads">MISC: green and lightweight threads</a></li>
+<li><a href="#bonus-continuations">Bonus: continuations</a></li>
 </ul>
 </li>
 <li><a href="#syntax">Syntax</a>
@@ -134,6 +134,7 @@ Let&rsquo;s shed a light on this! 💡</p>
 <li><a href="#callbacks">Callbacks</a></li>
 <li><a href="#futures-and-asyncawait">Futures and async/await</a></li>
 <li><a href="#communicating-sequential-processes-csp">Communicating sequential processes (CSP)</a></li>
+<li><a href="#message-passing">Message passing</a></li>
 <li><a href="#monad-comprehensions">Monad comprehensions</a></li>
 </ul>
 </li>
@@ -166,24 +167,24 @@ Let&rsquo;s shed a light on this! 💡</p>
 </ul>
 <h1 id="part-1-concepts">Part 1. Concepts</h1>
 <h2 id="reasons-for-concurrent-programming">Reasons for concurrent programming</h2>
-<p>Every program consists of a bunch of CPU <em>computations</em> and syncronous <em>waiting</em> for something to become available (e.g. lock, result of a network request).<br>
+<p>Every program consists of a bunch of CPU <em>computations</em> and syncronous <em>waiting</em> for something to become available (e.g. result of a network request, some lock).<br>
 Instead of keeping CPU idle while waiting, we could start another computation <em>concurrently</em> (read &ldquo;concurrent&rdquo; as &ldquo;with overlapping execution time bounds&rdquo;): this would allow to accomplish more in less time.<br>
-A set of techniques which enables concurrent execution of computations is called <em>concurrent programming</em>.</p>
+A set of techniques which enables concurrent execution of computations is called <strong>concurrent programming</strong>.</p>
 <h3 id="waiting-optimization">Waiting optimization</h3>
-<p>All waiting operations might be split into two categories: synchronisation and I/O.<br>
-<em>Synchronisation</em> (language-level):</p>
+<p>All waiting operations might be split into two categories: synchronisation (language-level) and I/O (system-level).<br>
+<em>Synchronisation</em>:</p>
 <ul>
 <li>locks</li>
 <li>blocking queues</li>
 </ul>
-<p><em>I/O (OS-level)</em>:</p>
+<p><em>I/O</em>:</p>
 <ul>
 <li>network socket reads/writes</li>
 <li>disk reads/writes</li>
 <li>DNS lookups</li>
 <li>other system calls (see <a href="https://www.tutorialspoint.com/different-types-of-system-calls">types of system calls</a>)</li>
 </ul>
-<p>There are two ways to deal with waiting operations: either constantly poll for some completion condition or &ldquo;subscribe&rdquo; to that event via a callback which will resume a computation when called. The second approach gives the desired opportunity for CPU to work on other computations while previous computation might be paused until the waiting finishes.<br>
+<p>There are two ways to deal with waiting operations: either constantly poll for some completion condition or &ldquo;subscribe&rdquo; to the completion event via a callback which will resume a computation when called. The second approach gives the desired opportunity for CPU to work on other computations while previous computation might be paused until the waiting finishes.<br>
 Most of the listed types of blocking might be implemented efficiently with that idea in mind:</p>
 <ul>
 <li>efficient implementations of synchronisation primitives (locks, blocking queues) are handled by the language designers</li>
@@ -193,44 +194,77 @@ Most of the listed types of blocking might be implemented efficiently with that 
 </ul>
 <h3 id="multitasking">Multitasking</h3>
 <p>Besides waiting optimisation concurrent programming ships an opportunity to progress in execution of multiple CPU-bound concurrent tasks independently of the number of involved system threads.<br>
-This approach is called <em>multitasking</em>.<br>
+This approach is called <strong>multitasking</strong>.<br>
 There are two types of it:</p>
 <ul>
-<li><em>Preemptive multitasking</em>. In this model each computation might be paused by the scheduler and resumed at some time later.<br>
-Examples: system threads, goroutines (Go), IO monad (Haskell).</li>
-<li><em>Cooperative multitasking</em>. This model allows only voluntary pauses, which allow other computations to get their CPU time. Voluntary pausing is often called <em>yielding</em>.<br>
-Examples: coroutines (Lua, Kotlin)</li>
+<li><strong>Preemptive multitasking</strong>. In this model each computation might be paused by the scheduler and resumed at some time later.<br>
+Examples: system threads. Goroutines in Go, sparks in Haskell and actors in Erlang are roughly preemptive, nuances will be explored in the corresponding sections.</li>
+<li><strong>Cooperative multitasking</strong>. This model allows only voluntary pauses, which allow other computations to get their CPU time. Voluntary pausing is often called <strong>yielding</strong>.<br>
+Examples: fibers in Lua, Python, Rust, Kotlin.</li>
 </ul>
-<p>While preemptive approach doesn&rsquo;t allow long-running tasks to occupy all the CPU time, those programs are more prone to bugs, since the execution might be preempted at any point. Therefore a very careful synchronisation is required to prevent various bugs like data races and race conditions.<br>
+<p>While preemptive approach does not allow long-running tasks to occupy all the CPU time, those programs are more prone to bugs like data races and race conditions, since the execution might be preempted at an unexpected point; therefore a very careful synchronisation is required.<br>
 Cooperative approach is widespread in many languages since it is sufficient for most of applications (non latency-critical ones) and allows smaller amount of inappropriate execution scenarios to happen.</p>
 <p>The next part will cover the known ways to implement multitasking.</p>
-<p>Useful links:</p>
+<p><em>Useful links</em>:</p>
 <ul>
+<li><a href="https://en.wikipedia.org/wiki/C10k_problem">C10k problem</a>: handling large amount of concurrent clients</li>
 <li><a href="https://gist.github.com/jboner/2841832">list</a> of latency numbers for RAM/CPU/disk/network operations</li>
 <li><a href="https://blog.regehr.org/archives/490">race condition vs data race</a></li>
 </ul>
 <h2 id="units-of-execution">Units of execution</h2>
 <h3 id="system-processes-and-threads">System processes and threads</h3>
-<p>The lowest abstraction representing an executing program is a <em>system process</em>.<br>
+<p>The lowest abstraction representing an executing program is a <strong>system  (native) process</strong>.<br>
 Each process has its <em>address space</em> (some allocated memory to store all possible addresses to devices, files on disk, main memory locations, remote hosts). Processes are scheduled by a system scheduler. The scheduling is preemptive, in order to guarantee that all running processes will have a chance to progress.</p>
-<p>Many programs require parallel execution (e.g. browser should be able to brouse several pages in time). For this purpose a process can spawn multiple <em>system threads</em> &ndash; some objects that share the address space of their process, but have own call stacks. To schedule a process means to schedule all of its threads.<br>
-The goal of parallel execution might also be achieved via creating multiple processes, but inter-process communication (via pipes or sockets) is slower than communication between threads sharing the same address space.</p>
-<p>Why not to stop here? Why do we keep hearing about &ldquo;lightweight threads&rdquo; implementations in different languages?<br>
-The reason for this is the time which takes to start a system thread and the amount of memory it occupies: the default size of Linux thread call stack is 2 megabytes. It turns out that a system thread is a relatively precious resource, as one cannot spawn more than a couple of thousands of them on a single machine.<br>
-But at the same time one might want to have millions of small concurrent tasks accomplished, hence spawning one system thread per one task is not affordable.</p>
-<p>Useful links:</p>
+<p>Some programs require parallel execution (e.g. browser should be able to browse several pages in time). For this purpose a process can spawn multiple <strong>system (native) threads</strong> &ndash; some objects, that share the address space of their process, but have own call stacks. To schedule a process means to schedule all of its threads.<br>
+The goal of parallel execution might also be achieved with process spawning, but inter-process communication (via pipes or sockets) is slower (TODO reasons and links) than communication between threads sharing the same address space.</p>
+<p>However, if a program needs to run up to millions of concurrent tasks, spawning system threads on per-task basis is not affordable because of the overhead in the thread start/stop time (TODO what time) and the amount of memory it occupies: the default size of Linux thread call stack is 2 megabytes. It turns out, that a system thread is a relatively precious resource, as one cannot spawn more than a couple of thousands of them on a single machine due to the memory limit. In case of single-threaded languages (e.g. JavaScript, Python, Lua) spawning system threads is not even an option for multitasking.</p>
+<p>We need abstractions, which enable multitasking, regardless of the amount of system threads, backing our program at the moment.</p>
+<p><em>Useful links</em>:</p>
 <ul>
 <li><a href="https://www.slashroot.in/difference-between-process-and-thread-linux">Linux processes and threads</a></li>
-<li><a href="https://opensource.com/article/19/2/fair-scheduling-linux">Completely Fair Scheduler &ndash; default Linux scheduler</a></li>
+<li><a href="https://opensource.com/article/19/2/fair-scheduling-linux">Completely Fair Scheduler</a>: default Linux scheduler</li>
+<li><a href="https://softwareengineering.stackexchange.com/a/173581">Thread pooling</a>: keeping a few long-living &ldquo;worker&rdquo; threads, which recieve tasks through some &ldquo;executor&rdquo; interface. Allows to avoid system thread spawning for every new task by scheduling these tasks onto existing threads from the pool. Each multi-thread language has its means for thread pooling, either language-level (e.g. in Java) or runtime-level (e.g. in Go).</li>
 </ul>
-<h3 id="continuations-coroutines-generators">Continuations, Coroutines, Generators</h3>
-<h3 id="coroutines--scheduling--fibers">Coroutines + Scheduling = Fibers</h3>
+<h3 id="green-lightweight-threads">Green (lightweight) threads</h3>
+<p>Basically, each programming language has a choice either to rely on the system thread scheduling or implement custom units of execution and schedule them on top of the system threads.<br>
+The latter approach is called <strong>green (or lightweight) threading</strong>.</p>
+<p>The word &ldquo;green&rdquo; originated from the name of the team (The Green Team), which designed a language-level threading model for <a href="https://docs.oracle.com/cd/E19455-01/806-3461/ch2mt-41/index.html">Java 1.1</a>.<br>
+Now this terminology does not define anything specific. Green threads are referred to as some language-level units of execution, which are scheduled by the the language runtime and have lesser context switch and creation overhead than system threads. For example, fibers can be named green threads, actors also imply the existence of some green thread implementation.</p>
+<h3 id="coroutines-and-fibers">Coroutines and Fibers</h3>
+<p>In order to implement multitasking we need to represent our computations as some objects, which can be launched, paused and resumed. This is where a coroutine concept becomes really handy.<br>
+<strong>Coroutine</strong> is a line of execution with its local variables and instruction pointer, that has the ability to voluntarily pause (persisting values of its local variables and giving the control to another coroutine) and resume by another coroutine sometime in the future. Coroutines can be used to implement <em>generators</em> &ndash; expressions, which can produce multiple values (see Python <a href="https://wiki.python.org/moin/Generators">generators</a> for an example) and language-level multitasking. Although being a building block for multitasking, coroutines should not be associated with concurrency: this is just one application of the powerful concept.<br>
+Coroutines are classified across multiple axes:</p>
+<ul>
+<li>
+<p>Control-transfer mechanism</p>
+<ul>
+<li><em>Asymmetric</em> (also semi-symmetric) implies two control-transfer operations, which induce the caller-callee relationships. One for calling another coroutine; another for yielding current coroutine with passing control to its caller.<br>
+Examples: <a href="https://www.lua.org/pil/9.1.html">Lua</a> (native support), <a href="https://kotlinlang.org/docs/reference/coroutines/coroutines-guide.html">Kotlin</a> (library support).</li>
+<li><em>Symmetric</em> provides the only control-transfer operation, that allows to explicitly pass control to any coroutine. All coroutines operate at the same level, without caller-callee hierarchy. Examples: old-school <a href="https://freepages.modula2.org/gintro/A%20Gentle%20Introduction%20to%20Modula-2.htm#Coroutines">Modula-2</a> (native support), <a href="http://www.crystalclearsoftware.com/soc/coroutine/coroutine/symmetric_coroutines.html">C++</a> (library support; both symmetric and asymmetric).</li>
+</ul>
+<p>Symmetric coroutines, acting like <em>goto</em> statement, seem to be mostly abandoned by modern languages in favor to their asymmetric counterparts, which behave more like functions.</p>
+</li>
+<li>
+<p><em>Stackfullness</em>. Stackfull coroutines maintain a callstack and have an ability to yield from nested function calls. Stackless coroutines lack this ability, but have lower memory footprint.</p>
+</li>
+<li>
+<p><em>First-class/constrained</em> constructs.<br>
+First-class coroutines can be manipulated by programmer explicitly (e.g. in Lua or Kotlin).<br>
+Constrained implementations of coroutines are baked into some language-level constructs (e.g. generators in Python, goroutines in Go) and cannot be used by programmer for other purposes.</p>
+</li>
+</ul>
+<p>Implementations of coroutines, which pass control to some <em>scheduler</em> (instead of passing to other coroutines), are called <strong>fibers</strong>. This is an implementation of green threading with <em>cooperative scheduling</em> (due to the properties of coroutines). Fibers are also often referred to as <em>cooperative light-weight threads</em>.</p>
+<p><em>Useful links</em>:</p>
+<ul>
+<li><a href="http://www.inf.puc-rio.br/~roberto/docs/MCC15-04.pdf">More on coroutines classificaiton</a>: the paper provides detailed coroutine overview and claims coroutines to be as expressive as one-shot continuations.</li>
+</ul>
 <h3 id="actors">Actors</h3>
-<h3 id="misc-green-and-lightweight-threads">MISC: green and lightweight threads</h3>
+<h3 id="bonus-continuations">Bonus: continuations</h3>
 <h2 id="syntax">Syntax</h2>
 <h3 id="callbacks">Callbacks</h3>
 <h3 id="futures-and-asyncawait">Futures and async/await</h3>
 <h3 id="communicating-sequential-processes-csp">Communicating sequential processes (CSP)</h3>
+<h3 id="message-passing">Message passing</h3>
 <h3 id="monad-comprehensions">Monad comprehensions</h3>
 <h2 id="points-of-comparison">Points of comparison</h2>
 <h3 id="types-of-multitasking">Types of multitasking</h3>
